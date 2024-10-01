@@ -1,0 +1,6 @@
+---
+title: "P8105_HW2_dw3093"
+author: "KatherineWang"
+date: "2024-10-01"
+output: github_document
+---
