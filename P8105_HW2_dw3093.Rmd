@@ -1,6 +1,195 @@
 ---
 title: "P8105_HW2_dw3093"
-author: "KatherineWang"
-date: "2024-10-01"
 output: github_document
+name: Katherine Wang dw3093
 ---
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(collapse = TRUE, message = FALSE)
+```
+
+```{r}
+#load the required library packages
+library(tidyverse)
+library(readxl)
+```
+
+##Quesion 1:
+```{r}
+transit_data <- read_csv("~/Desktop/NYC_Transit_Subway_Entrance_And_Exit_Data.csv") %>%
+janitor::clean_names() %>%
+select(line, station_name, station_latitude, station_longitude, 
+starts_with("route"), entry, exit_only, vending, entrance_type, ada) %>%
+mutate(entry = entry == "YES", across(starts_with("route"), as.character) )
+
+# In this first part, I imported the dataset using read_csv and cleaned the column names with janitor::clean_names(). 
+# I then selected the specific columns I wanted to focus on, which included station attributes like the subway line, station name, latitude/longitude, routes, entry, vending, and ADA compliance. 
+# I used mutate to convert the entry column from "YES"/"NO" to logical TRUE/FALSE, which will make it easier to analyze entry access later. 
+# I also converted all the route columns to character type using across(starts_with("route"), as.character).
+```
+```{r}
+distinct_stations <- transit_data %>%
+  distinct(station_name, line)
+num_distinct_stations <- nrow(distinct_stations)
+num_distinct_stations
+# I calculated the number of distinct subway stations by considering both the station name and the line. Some stations (like "125th St") appear on multiple lines, so I used the distinct() function on both station_name and line to treat each combination as a unique station.
+# I calculated the total number of distinct stations using nrow(), and the result was 465.
+```
+```{r}
+ada_stations <- transit_data %>%
+filter(ada == TRUE) %>%
+distinct(station_name, line)
+num_ada_stations <- nrow(ada_stations)
+num_ada_stations
+# By filtering for rows where the ada column is TRUE, I focused only on the stations that meet ADA accessibility standards. After ensuring each station is unique by using distinct(), I counted the number of ADA-compliant stations using nrow(), which gave me a total of 84 ADA-compliant stations.
+```
+```{r}
+proportion_no_vending_entry <- transit_data %>%
+filter(vending == "NO") %>%
+summarise(proportion = mean(entry, na.rm = TRUE)) %>%
+pull(proportion)
+proportion_no_vending_entry
+#I filtered the data to include only stations where the vending column is "NO". Then, I calculated the mean of the entry column (which contains TRUE/FALSE values) to determine the proportion of stations without vending machines that allow entry. The result means 0.3770492 (37.70%) of stations without vending machines still allow entry.
+```
+```{r}
+a_train_stations <- transit_data %>%
+pivot_longer(starts_with("route"), names_to = "route_num", values_to = "route") %>%
+filter(route == "A") %>%
+distinct(station_name, line)
+num_a_train_stations <- nrow(a_train_stations)
+num_a_train_stations
+#For the multiple route columns, I used pivot_longer() to convert those wide-format route columns into long format. This allowed me to filter for only those rows where the route is "A". After ensuring that stations serving the A train are distinct by using distinct(), I counted how many unique stations serve the A train. The result was 60 stations.
+```
+
+
+```{r}
+ada_a_train_stations <- transit_data %>%
+pivot_longer(starts_with("route"), names_to = "route_num", values_to = "route") %>%
+filter(route == "A", ada == TRUE) %>%
+distinct(station_name, line)
+num_ada_a_train_stations <- nrow(ada_a_train_stations)
+num_ada_a_train_stations
+# I used pivot_longer() to reshape the route data and filtered for stations serving the A train (route == "A") and that are ADA compliant (ada == TRUE). I ensured each station is distinct by using distinct() on the station name and line, and then I counted how many unique ADA-compliant stations serve the A train. The result was 17 stations.
+
+
+## In summary, from the output, I determined that there are 465 distinct subway stations, 84 of which are ADA compliant. Approximately 37.7% of entrances without vending machines still allow entry. I also found that 60 stations serve the A train, and out of those, 17 are ADA compliant.
+```
+
+
+#Question 2#
+```{r}
+##data import and cleaning of Mr. Trash Wheel##
+mr_trash_wheel = read_excel("~/Desktop/202409 Trash Wheel Collection Data.xlsx", 
+                            range="A2:N655", 
+                            sheet = "Mr. Trash Wheel", 
+                            na = c("NA", "", ".")) %>% 
+janitor::clean_names() %>% 
+filter(!is.na(dumpster)) %>% 
+mutate(year = as.numeric(year)) %>% 
+mutate(sports_balls = as.integer(sports_balls)) %>%
+mutate(name = "mr_trash") 
+
+##data import and cleaning of Professor Trash Wheel##
+prof_trash_wheel = read_excel("~/Desktop/202409 Trash Wheel Collection Data.xlsx", 
+                              range="A2:M123", 
+                              sheet = "Professor Trash Wheel", 
+                              na = c("NA", "", ".")) %>%
+janitor::clean_names() %>%
+filter(!is.na(dumpster)) %>%
+mutate(name = "prof_trash")
+
+##data import and cleaning of Gwynnda Trash Wheel##
+gwynnda_trash_wheel = read_excel("~/Desktop/202409 Trash Wheel Collection Data.xlsx", 
+                                 range="A2:L266", 
+                                 sheet = "Gwynnda Trash Wheel", 
+                                 na = c("NA", "", ".")) %>%
+janitor::clean_names() %>%
+filter(!is.na(dumpster)) %>%
+mutate(name = "gwynnda_trash")
+
+#combine three data
+combined_trash = bind_rows(mr_trash_wheel, prof_trash_wheel, gwynnda_trash_wheel) %>%
+janitor::clean_names() %>% 
+relocate(name)
+# combines the three datasets (Mr. Trash, Professor Trash, and Gwynnda) into one using bind_rows(), combined dataset with 1,033 rows and 15 columns is created, containing all the information from the three Trash Wheel datasets.
+
+# Total weight collected by Professor Trash Wheel
+total_weight_prof = prof_trash_wheel %>%
+summarise(total_weight = sum(weight_tons, na.rm = TRUE)) %>%
+pull(total_weight)
+total_weight_prof
+#This calculates the total weight of trash collected by Professor Trash Wheel by summing the weight_tons column. The na.rm = TRUE argument removes missing values before summing. The total weight collected by Professor Trash Wheel is 246.74 tons.
+
+# Total number 
+total_number = combined_trash %>% 
+filter(name == "gwynnda_trash", month == "June", year == 2022) %>% 
+summarise(total_number = sum(cigarette_butts))
+pull(total_number)
+total_number
+# this filters the combined dataset to select data from Gwynnda Trash Wheel in June 2022 and then calculates the total number of cigarette butts by summing the cigarette_butts column, and the total number of cigarette butts collected by Gwynnda in June 2022 is 18,120.
+
+# As the result shows, the total weight of trash collected by Professor Trash Wheel is r total_weight_prof tons (246.74 tons). Additionally, the total number of cigarette butts collected by Gwynnda Trash Wheel in June 2022 is r total_number (18,120).
+```
+#Question 3#
+```{r eval = FALSE}
+# import bakers data and data cleaning
+bakers = read_csv("~/Desktop/gbb_datasets/bakers.csv", na = c("NA", "", ".")) %>%
+  janitor::clean_names() %>% 
+  mutate(baker = word(baker_name, 1)) %>%
+  select(-baker_name)
+
+# import bakes data and data cleaning
+bakes = read_csv("~/Desktop/gbb_datasets/bakes.csv", na = c("NA", "", ".")) %>% 
+  janitor::clean_names() %>%
+  arrange(series, episode, baker)
+
+# import results data and data cleaning
+results = read_csv("~/Desktop/gbb_datasets/results.csv", na = c("NA", "", "."), skip = 2) %>% 
+  janitor::clean_names() %>%
+  arrange(series, episode)
+
+# Check bakers in bakers but missing in results
+bakers_missing_in_results = anti_join(bakers, results, by = c("series","baker"))
+
+# Check bakers in results but missing in bakers
+results_missing_in_bakers = anti_join(results, bakers, by = c("series", "baker"))
+
+# Merge bakers and results
+bakers_results = left_join(results, bakers, by = c("series", "baker"))
+
+# Merge the combined bakers_results with bakes
+final_dataset = left_join(bakers_results, bakes, by = c("series", "episode", "baker"))
+
+# Select only the relevant columns
+final_dataset <- final_dataset %>%
+  select(series, episode, baker, baker_age, technical, result, baker_occupation, hometown, signature_bake, show_stopper)
+
+# Export the final dataset to a CSV
+write_csv(final_dataset, "~/Desktop/gbb_datasets/final_dataset.csv")
+
+# First, I ensured that column names were standardized using clean_names(). For the bakers.csv dataset, I extracted only the first name of each contestant using mutate(baker = word(baker_name, 1)) and removed the original baker_name column. To check for missing or unmatched data between the datasets, I utilized anti_join() to identify any bakers missing from the results.csv file or vice versa. I then merged the datasets using left_join(), starting by combining the bakers.csv and results.csv datasets, followed by merging this combined dataset with bakes.csv. In the final dataset, I combined all three sources of data into a single dataset, containing 1,136 observations and 10 columns. 
+
+star_bakers <- final_dataset %>%
+  filter(series >= 5 & series <= 10) %>%
+  filter(result %in% c("STAR BAKER", "WINNER")) %>%
+  arrange(series, episode)
+
+# Create a table summarizing the Star Baker or Winner by episode
+star_baker_table <- star_bakers %>%
+  select(series, episode, baker, result) %>%
+  arrange(series, episode)
+# This section filters the data to include only STAR BAKER and WINNER results from Seasons 5 to 10. An interesting observation is that in season 10, David won the final episode and was crowned the overall winner, despite not being a Star Baker in any previous episode. Winners like Nadiya (season 6), Candice (season 7), and Rahul (season 9) won multiple Star Baker titles throughout the competition before winning the final.
+
+# Import the viewers data
+viewers = read_csv("~/Desktop/gbb_datasets/viewers.csv", na = c("NA", "", ".")) %>%
+janitor::clean_names()%>%
+rename(s1 = series_1, s2 = series_2, s3 = series_3, s4 = series_4, s5 = series_5, s6 = series_6, s7 = series_7, s8 = series_8, s9 = series_9, s10 = series_10) %>% 
+head(viewers, n=10)
+avgvs1 <- viewers %>%
+select(s1) %>%
+summarize(average_viewership = mean(s1, na.rm = TRUE))
+
+avgvs5 <- viewers %>%
+select(s5) %>%
+summarize(average_viewership = mean(s5, na.rm = TRUE))
+#The average viewership for season 1 is r avgvs1$average_viewership million viewers (with a result of 2.77). The average viewership for season 5 is higher at r avgvs5$average_viewership million viewers (with a result of 510.0393). 
+```
